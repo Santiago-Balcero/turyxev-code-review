@@ -8,7 +8,7 @@ Por: [Santiago Balcero](https://github.com/Santiago-Balcero)
 - Al ser un proyecto de naturaleza compleja recomiendo seguir la especificación [OpenAPI](https://swagger.io/specification/) como parte de la documentación de los endpoints, métodos y códigos http, parámetros de las URL, objetos esperados en los cuerpos de la petición y objetos esperados como respuesta. Ejemplo [aquí](https://petstore.swagger.io/).
 - Al descargar el repositorio, estar parado sobre la rama `develop` el `11 de Noviembre de 2025 a las 7:30am` y ejecutar los tests con `npm run test` se encuentra que hay varios tests que no funcionan. Recomiendo incorporar un pipeline con GitHub actions que valide la ejecución de los tests al abrir un Pull Request a la rama `develop` y a la rama `main`. ![Resultado de ejecución de tests](images/image.png)
 - Al descargar el repositorio, estar parado sobre la rama `develop` el `11 de Noviembre de 2025 a las 7:30am` y ejecutar el proyecto con `npm run dev` se encuentra que el proyecto no compila debido al error en la imagen. Recomiendo incorporar un pipeline con GitHub actions que valide que el proyecto compila y se inicia correctamente al abrir un Pull Request a la rama `develop` y a la rama `main`. ![Error módulo no encontrado](images/image-1.png)
-- Al arreglar el error el proyecto sigue sin compilar debido a que falla la conexión con MongoDB ![Corrección error módulo no encontrado](/images/image-2.png)
+- Al arreglar el error el proyecto sigue sin compilar debido a que falla la conexión con MongoDB. ![Corrección error módulo no encontrado](/images/image-2.png)
 - Recomiendo que la rama develop esté siempre estable: tests se ejecutan correctamente, el proyecto compila y se inicia el servidor.
 
 ## Elección de base de datos ⚠️
