@@ -18,3 +18,60 @@ Por: [Santiago Balcero](https://github.com/Santiago-Balcero)
 
 ## Observabilidad ❌
 - El proyecto no cuenta en absoluto con un sistema de logging, métricas o trazas. Esto hace que al poner el proyecto en producción o incluso en un ambiente de pruebas no haya manera alguna de saber qué está pasando con la aplicación en tiempo real. Los logs ayudan a entender el comportamiento, detectar errores y hacer auditorías. El ciclo de vida del desarrollo de software incluye el monitoreo y la observabilidad como herramientas claves para el mantenimiento y futuras iteraciones de los sitemas. Recomiendo dar prioridad a este ítem y no poner el proyecto en ambiente productivo hasta tanto no se tenga un mínimo de observabilidad. Recomiendo manejar logs estructurados por request. Lectura recomendada sobre logs estructurados [aquí](https://stripe.com/blog/canonical-log-lines).
+
+## Archivo configEjemplo.ts
+El nombre del archivo es confuso. ¿Por qué `...Ejemplo`?  
+
+```Typescript
+// Estos valores deberían hacer parte del .env y ser leídos desde allí.
+export const config = { // Este objeto de configuración debería estar tipado.
+  mongoUri: "MONGO_URI_HERE", // Valor quemado, mala práctica
+  port: 3000 // Valor quemado, mala práctica
+};
+```
+
+Versión mejorada:  
+```Typescript
+// ----- Archivo main.ts
+import { loadEnvFile } from "process";
+
+// Antes de cualquier otro import que use variables de entorno
+// esto asegura que lo primero que haga el programa es cargar el archivo de variables de entorno
+loadEnvFile('.env'); 
+
+// ----- Archivo configEjemplo.ts
+// Da la seguridad de saber qué tipo de dato va a tener cada campo de la configuración
+export interface ServerConfig { 
+  mongoUri: string;
+  port: number;
+}
+
+const getEnvVar = (name: string): string => {
+  const value = process.env[name];
+  if (!value) {
+    // Es importante que el manejo de errores siempre sea explícito
+    // si una variable de entorno requerida no se puede cargar el programa no debería avanzar en su ejecución
+    throw new Error(`Environment variable ${name} is required but not set`);
+  }
+  return value;
+};
+
+export const config: ServerConfig = {
+  mongoUri: getEnvVar("MONGO_URI"),
+  port: parseInt(getEnvVar("SERVER_PORT"), 10),
+};
+```
+
+## Archivo src/lib/Shared/Infrastructure/External.ts
+```Typescript
+import argon2 from "argon2";
+import cors from "cors";
+import * as dotenv from "dotenv"; // No es necesaria
+import express from "express";
+import mongoose from "mongoose";
+
+export { argon2, cors, dotenv, express, mongoose };
+```
+Este archivo no aporta nada en absoluto. Todo esto se puede importar directamente desde los lugares donde se necesite. No recomiendo usar este tipo de archivos `barrel exports`. Es más limpio el código al importar dependencias, funciones, constantes allí donde se necesite. Los `barrel exports` tienen sentido al escribir librerías y este no es el caso. Referencia [aqui](https://tkdodo.eu/blog/please-stop-using-barrel-files).  
+
+La dependencia `dotenv` no es necesaria para leer archivos `.env` desde `node 20.6+`. Ver ejemplo en la sección anterior respecto al archivo de configuración.
