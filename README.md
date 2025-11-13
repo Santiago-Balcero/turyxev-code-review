@@ -40,7 +40,7 @@ El archivo `tsconfig.json` tiene varias configuraciones comentadas que podrían 
 ## Archivo configEjemplo.ts ❌
 El nombre del archivo es confuso. ¿Por qué `...Ejemplo`?  
 
-```Typescript
+```typescript
 // Estos valores deberían hacer parte del .env y ser leídos desde allí.
 export const config = { // Este objeto de configuración debería estar tipado.
   mongoUri: "MONGO_URI_HERE", // Valor quemado, mala práctica
@@ -49,7 +49,7 @@ export const config = { // Este objeto de configuración debería estar tipado.
 ```
 
 Versión mejorada:  
-```Typescript
+```typescript
 // ----- Archivo main.ts
 import { loadEnvFile } from "process";
 
@@ -81,7 +81,7 @@ export const config: ServerConfig = {
 ```
 
 ## Archivo src/lib/Shared/Infrastructure/External.ts ❌
-```Typescript
+```typescript
 import argon2 from "argon2";
 import cors from "cors";
 import * as dotenv from "dotenv"; // No es necesaria
@@ -96,7 +96,7 @@ La dependencia `dotenv` no es necesaria para leer archivos `.env` desde `node 20
 
 ## Archivo main.ts ⚠️
 Este archivo debe ser lo más limpio posible y actualmente inluye muchas cosas que deben ir en archivos separados para mejor organización del código.
-```Typescript
+```typescript
 app.use("/api/business", ExpressBusinessRouter);
 app.use("/api/users", ExpressUserRouter);
 app.use("/api/reservations", ExpressReservationRouter);
@@ -104,7 +104,7 @@ app.use("/api/hotel", ExpressHotelRouter);
 ```
 Esto debe ir en un archivo separado que se encargue de registrar todas las rutas de la aplicación.  
 
-```Typescript
+```typescript
 app.use(
   (err: unknown, req: ex.Request, res: ex.Response, next: ex.NextFunction) => {
     if (err instanceof HttpError) {
