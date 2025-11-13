@@ -19,7 +19,25 @@ Por: [Santiago Balcero](https://github.com/Santiago-Balcero)
 ## Observabilidad ❌
 - El proyecto no cuenta en absoluto con un sistema de logging, métricas o trazas. Esto hace que al poner el proyecto en producción o incluso en un ambiente de pruebas no haya manera alguna de saber qué está pasando con la aplicación en tiempo real. Los logs ayudan a entender el comportamiento, detectar errores y hacer auditorías. El ciclo de vida del desarrollo de software incluye el monitoreo y la observabilidad como herramientas claves para el mantenimiento y futuras iteraciones de los sitemas. Recomiendo dar prioridad a este ítem y no poner el proyecto en ambiente productivo hasta tanto no se tenga un mínimo de observabilidad. Recomiendo manejar logs estructurados por request. Lectura recomendada sobre logs estructurados [aquí](https://stripe.com/blog/canonical-log-lines).
 
-## Archivo configEjemplo.ts
+## Estilo de código y linter ❌
+El repositorio carece de dos configuraciones importantes para ayudar a mantener la calidad del código y un estilo consistente que facilite su lectura sin importar qué tan grande sea el equipo de trabajo. `ESLint` es un linter que ayuda a mantener buenas prácticas y a detectar problemas con la calidad del código, documentación [aquí](https://eslint.org/). `Prettier` es una herramienta para el formateo automático del código para mantener un estilo consistente en los archivos, documentación [aquí](https://prettier.io/docs/). Ambas son solo dos opciones entre muchas y requieren sencillos archivos de configuración. Recomiendo su uso dado que la revisión general de los archivos revela un estilo inconsistente. También recomiendo la instalación y uso de las extensiones de VS Code/Cursor `Prettier - Code formatter` (extensión oficial de Prettier) y `ESLint` (extensión oficial de Microsoft).
+
+## Configuración de TypeScript ⚠️
+
+El archivo `tsconfig.json` tiene varias configuraciones comentadas que podrían mejorar significativamente la calidad del código y detectar errores tempranamente:
+
+**Configuraciones recomendadas para habilitar:**
+- `"noUnusedLocals": true` - Detecta variables locales no utilizadas.
+- `"noUnusedParameters": true` - Detecta parámetros de función no utilizados.
+- `"noImplicitReturns": true` - Requiere return explícito en todas las ramas.
+- `"exactOptionalPropertyTypes": true` - Manejo más estricto de propiedades opcionales.
+- `"noUncheckedIndexedAccess": true` - Añade 'undefined' a tipos accedidos por índice.
+
+**Problemas identificados:**
+- La inclusión `"Hotel/**/*"` es inconsistente con la estructura del proyecto (`/src/lib/Hotel/`).
+- Debería ser solo `"src/**/*"` para mantener consistencia.
+
+## Archivo configEjemplo.ts ❌
 El nombre del archivo es confuso. ¿Por qué `...Ejemplo`?  
 
 ```Typescript
@@ -62,7 +80,7 @@ export const config: ServerConfig = {
 };
 ```
 
-## Archivo src/lib/Shared/Infrastructure/External.ts
+## Archivo src/lib/Shared/Infrastructure/External.ts ❌
 ```Typescript
 import argon2 from "argon2";
 import cors from "cors";
@@ -75,3 +93,40 @@ export { argon2, cors, dotenv, express, mongoose };
 Este archivo no aporta nada en absoluto. Todo esto se puede importar directamente desde los lugares donde se necesite. No recomiendo usar este tipo de archivos `barrel exports`. Es más limpio el código al importar dependencias, funciones, constantes allí donde se necesite. Los `barrel exports` tienen sentido al escribir librerías y este no es el caso. Referencia [aqui](https://tkdodo.eu/blog/please-stop-using-barrel-files).  
 
 La dependencia `dotenv` no es necesaria para leer archivos `.env` desde `node 20.6+`. Ver ejemplo en la sección anterior respecto al archivo de configuración.
+
+## Archivo main.ts ⚠️
+Este archivo debe ser lo más limpio posible y actualmente inluye muchas cosas que deben ir en archivos separados para mejor organización del código.
+```Typescript
+app.use("/api/business", ExpressBusinessRouter);
+app.use("/api/users", ExpressUserRouter);
+app.use("/api/reservations", ExpressReservationRouter);
+app.use("/api/hotel", ExpressHotelRouter);
+```
+Esto debe ir en un archivo separado que se encargue de registrar todas las rutas de la aplicación.  
+
+```Typescript
+app.use(
+  (err: unknown, req: ex.Request, res: ex.Response, next: ex.NextFunction) => {
+    if (err instanceof HttpError) {
+      const response: ApiResponse<null> = {
+        success: false,
+        title: "Ocurrio un error",
+        message: err.message,
+        body: null,
+      };
+
+      return res.status(err.statusCode).json(response);
+    }
+
+    if (err instanceof Error) {
+      console.error(err.stack);
+      return res.status(500).json(err.message);
+    }
+    console.error(err);
+    return res.status(500).json("Something wrong!");
+  }
+);
+```
+Esto podría ir en un archivo `middlewares.ts`.  
+
+Este archivo combina `strings` en inglés y español a modo de mensajes en las repsuestas: `"Ocurrio un error"` (error de ortografía) y `"Something wrong!"`. Recomiendo retornar todos los mensajes en el mismo idioma. Recomiendo máxima atención a la ortografía, sobre todo si se piensa mostrar estos mensajes en la UI.
