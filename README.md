@@ -242,9 +242,9 @@ En este punto debe hacerse un lock sobre el sistema de inventario de habitacione
 9. En cualquier caso de error debe hacerse rollback a cualquier escritura en BD (excepto tal vez la del cálculo del valor de la reserva). En caso de éxito se hace commit a la transacción en la BD para efectivamente guardar los datos necesarios. Por esto es importante el uso de una BD con amplio soporte de transacciones para garantizar la atomicidad de la información y el estado coherente de los datos en todo momento.
 
 ### Impacto en Producción:
-- **Pérdida de dinero**: Reservas gratis, dobles reservas para una misma petición, overbooking.
-- **Experiencia de usuario pobre**: Reservas inválidas, conflictos y errores no controlados.
-- **Problemas operacionales**: Sistema roto sin posibilidad de recuperación ya que no hay manejo de errores (try/catch).
+- **Pérdida de dinero**: reservas gratis, dobles reservas para una misma petición, overbooking.
+- **Experiencia de usuario pobre**: reservas inválidas, conflictos y errores no controlados.
+- **Problemas operacionales**: sistema roto sin posibilidad de recuperación ya que no hay manejo de errores (try/catch).
 
 ### Cambio sugerido:
 ```typescript
