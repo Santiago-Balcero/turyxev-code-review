@@ -219,3 +219,100 @@ const hotel: Hotel = {
 2. **Fase 2**: Simplificar value objects críticos (mantener Email, Location).
 3. **Fase 3**: Eliminar value objects innecesarios (Name, Score, etc.).
 4. **Fase 4**: Refactoring de servicios y repositorios.
+
+## Caso de uso crítico: creación de reserva ❌
+### Archivo `src/lib/Reservation/application/create-reservation.ts`
+La capa de servicio (caso de uso, lógica de negocio) es una capa inútil en su actual implementación. Se limita a crear un objeto y pasarlo a la capa de acceso a datos sin validaciones de negocio mínimas (descritas más adelante en ejemplo de código). Incluso carece de manejo de errores (`try`/`catch`). De nuevo presenta una sobreingeniería que añade complejidad innecesaria para el manejo de datos primitivos. Crear una clase para cada caso de uso puede agregar complejidad innecesaria en este punto de desarrollo del proyecto. En el desarrollo backend con Typescript no es común el uso de `...Props` (más reservado para los props de componentes de frontend), sugiero cambiarlo por `...Request`.  
+El código también carece de un elemento fundamental en el diseño e implementacieon de sistemas backend: validación de inputs. Estos inputs vienen del frontend, pero ¿cómo sabe el backend que puede confiar en estos datos y su integridad? Debe haber validación.  
+En la implementación de capas de servicio es muy importante hacerse preguntas de tipo "¿qué pasa sí?". Ejemplos: ¿qué pasa si llegan dos peticiones en simultáneo para la misma habitación del mismo hotel y en las mismas fechas?, ¿qué pasa si el ususario está inactivo?, ¿qué pasa si el hotel ya está lleno?. 
+Recomiendo un refactor completo de este caso de uso teniendo en mente lógica de negocio real (con alcance de un MVP) y programación defensiva. Referencia de programación defensiva [aquí](https://medium.com/@sophiadizon/defensive-coding-approach-43bf3f3c007d). Referencia de idempotencia [aquí](https://medium.com/@reetesh043/rest-api-design-what-is-idempotency-18218e1ff73c).
+
+### Implementación de lógica de negocio:
+Recomiendo los siguientes pasos para la implementación de una lógica de negocio funcional.
+1. Lo primero es usar una llave de idempotencia que permita saber si esta reserva ya fue procesada o no.
+2. Validar el input. Esto debería ir en un método independiente dentro de este caso de uso (archivo). Validar que las fechas de check in y check out sean en el futuro (no pueden ser fechas en el pasado respecto al momento de creación de la reserva), validar que la fecha de check out sea posterior a la fecha de check in, validar que todos IDs del request sean diferentes a 0, validar que el número de huéspedes sea mayor o igual a 1, validar que el valor de la reserva no sea 0 (en caso de que el valor ya se haya calculado teniendo en cuenta tarifas, impuestos, deducciones, comisiones, descuentos, costos de transacción).  
+En entornos reales el valor total calculado de la reserva debe guardarse en una tabla histórica y de auditoría dado que los precios que da el hotel por sus servicios, impuestos, comisiones, etc, varían con el tiempo.
+3. Mínimo se debe validar el estado de cuenta del usuario. Verificar que el usuario esté activo en el sistema y como opcionales: Opcionales: que el usuario no tenga otras reservas activas en esta fecha, que el usuario no tenga pagos pendientes de reservas anteriores. Lo que se busca es saber que el ususario está realmente habilitado para la creación de una reserva nueva. En entornos reales en este punto se suelen validaciones de riesgo y fraude en relación a la cuenta del usuario en el sistema usando servicios de terceros para verificación de identidad digital.
+4. Mínimo se debe validar el estado de cuenta del hotel. Verificar que el hotel esté activo en el sistema. Lo que se busca es saber que el hotel está habilitado para recibir una reserva desde el punto de vista de salud de la cuenta del hotel en el sistema (diferente a la disponibilidad de habitaciones).
+5. Se debe validar que el hotel tenga disponibilidad para las fechas, número de huéspedes y habitación (o tipo de habitación). En este punto es imporante garantizar que si otra reserva llega para el mismo hotel, fechas y habitación, el sistema no genere doble reserva. Lo mismo aplica en caso de que la comunicación entre cliente y servidor falle y el usuario reintente. Se debe garantizar la idempotencia de la operación, sin importar qué suceda, este proceso debe garantizar que si todas las validaciones pasan se genere una única reserva. Es importante verificar que esta misma reserva no haya sido ya creada en el sistema. ¿Qué pasa si en mitad de este proceso se apaga el servidor o falla alguno de los pasos(esto en teoría es una API restful y debe poderlo manejar)? ¿Qué pasa si el número de huéspedes del request es mayor al que el hotel puede aceptar en esa habitación?  
+En este punto debe hacerse un lock sobre el sistema de inventario de habitaciones del hotel para que en caso de que una segunda reserva llegue al mismo tiempo, solo una de ellas sea exitosa previniendo overbooking en la misma habitación. Al finalizar este proceso, sin importar el resultado, debe liberarse el lock sobre la habitación. En caso de éxito el lock libera la habitación y la reserva queda guardada exitosamente. En caso de falla el lock libera la habitación para nuevos intentos de reserva y la reserva no se guarda.
+6. Si el valor de la reserva no se ha calculado, debe calcularse teniendo en cuenta tarifas, impuestos, deducciones, comisiones, costos de transacción y guardar el cálculo en una tabla.
+7. Cobrar la reserva o al menos hacer un ping a la tarjeta de crédito o método de pago que el cliente tenga registrado en la plataforma. Si no tiene ninguno, el request debe incluir información del medio de pago a usar para esta transacción.
+8. Finalmente guardar la reserva en la base de datos. Debe defiinirse una estrategia de gestión del inventario de habitaciones disponibles por hotel.
+9. En cualquier caso de error debe hacerse rollback a cualquier escritura en BD (excepto tal vez la del cálculo del valor de la reserva). En caso de éxito se hace commit a la transacción en la BD para efectivamente guardar los datos necesarios. Por esto es importante el uso de una BD con amplio soporte de transacciones para garantizar la atomicidad de la información y el estado coherente de los datos en todo momento.
+
+### Impacto en Producción:
+- **Pérdida de dinero**: Reservas gratis, dobles reservas para una misma petición, overbooking.
+- **Experiencia de usuario pobre**: Reservas inválidas, conflictos y errores no controlados.
+- **Problemas operacionales**: Sistema roto sin posibilidad de recuperación ya que no hay manejo de errores (try/catch).
+
+### Cambio sugerido:
+```typescript
+interface CreateReservationRequest {
+  idempotencyKey: string; // generado por el cliente para garantizar la idempotencia de la transacción
+  userId: string;
+  hotelId: string;
+  checkInDate: Date;
+  checkOutDate: Date;
+  // Este input carece de datos fundamentales y críticos para cualquier sistema de reserva
+  // A continuación algunos sugeridos:
+  roomID: numnber; // o al menos un roomType: string
+  guestCount: number; // cómo sabe el hotel cuántos huéspedes va a recibir sin este dato?
+  totalAmount: number; // precio de la reserva, fundamental para el cálculo de tarifas, impuestos, ping a la tarjeta de crédito, etc
+  specialRequests: string; // el usuario tiene la posibilidad de hacer peticiones especiales?
+}
+
+export class CreateReservation {
+  constructor(
+    private readonly reservationRepository: ReservationRepository,
+    private readonly hotelService: HotelService,
+    private readonly userService: UserService,
+    private readonly availabilityService: AvailabilityService,
+    private readonly pricingService: PricingService,
+    private readonly paymentService: PaymentService,
+    private readonly logger: Logger
+    ) {
+      // Creación de la instancia
+    }
+
+  async handler(request: CreateReservationRequest) {
+    // 1. usarReservationRepository y la idempotencyKey para verificar que no se haya procesado ya esta misma reserva.
+
+    // 2. Validar input.
+  
+    // 2.Usar userService para validar el estado de cuenta del usuario.
+
+    // 4. Usar hotelService para validar el estado de cuenta del hotel.
+
+    // 5. Usar availabilityService para verificar la disponibilidad  del hotel para las fechas, tipo de habitación (o número de habitación) y número de huéspedes del hotel.
+
+    // 6. Usar princingService para determinar el valor de la reserva en caso que no se haya calculado antes.
+
+    // 7. Usar paymentService para realizar el pago de la reserva o al menos un ping a la tarjeta de crédito para verificar la validez del método de pago.
+
+    // 8. Finalmente sí crear la reserva en la BD. El estado pending es correcto hasta tanto no se reciba confirmación del pago, el ususario cancele o algo falle.
+    const now = new Date(Date.now());
+    const createdAt = ReservationCreatedAt.create(now);
+
+    const reservation = new Reservation({
+      reservationId: new ReservationId(""),
+      userId: new ReservationUserId(props.userId),
+      hotelId: new ReservationHotelId(props.hotelId),
+      checkInDate: ReservationCheckInDate.create(props.checkInDate),
+      checkOutDate: ReservationCheckOutDate.create(
+        props.checkOutDate,
+        props.checkInDate
+      ),
+      status: ReservationStatus.create(),
+      totalAmount: ReservationTotalAmount.create(0),
+      createdAt: createdAt,
+      updatedAt: ReservationUpdatedAt.now(createdAt),
+    });
+
+    const created = await this.repository.create(reservation);
+
+    return created.toResponse();
+  }
+}
+
+```
