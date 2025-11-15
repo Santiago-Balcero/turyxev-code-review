@@ -280,7 +280,7 @@ export class CreateReservation {
 
     // 2. Validar input.
   
-    // 2.Usar userService para validar el estado de cuenta del usuario.
+    // 3.Usar userService para validar el estado de cuenta del usuario.
 
     // 4. Usar hotelService para validar el estado de cuenta del hotel.
 
