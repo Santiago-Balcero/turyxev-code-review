@@ -210,7 +210,7 @@ const hotel: Hotel = {
 ### Violaciones de Seguridad CRÍTICAS:
 - **Password en entidad de dominio** - Riesgo de exposición.
 - **Password en respuesta toResponse()** - Violación grave de seguridad.
-- **Credenciales mezcladas con datos de negocio**
+- **Credenciales mezcladas con datos de negocio.**
 
 ### Plan de Migración Sugerido:
 1. **Fase 1**: Separar autenticación (HotelUser) del dominio Hotel.
