@@ -196,6 +196,8 @@ export interface Hotel {
 }
 
 // Ejemplo de instanciación sencilla sin necesidad de método constructor
+// En caso de querer manejar las entidades como clases, se puede usar el método constructor
+// siempre priorizando la simplicidad en la definición de los tipos de datos
 const hotel: Hotel = {
   id: generateId(),
   name: "Hotel California",
